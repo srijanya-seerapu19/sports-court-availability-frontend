@@ -1,0 +1,15 @@
+# Frontend generated files and local environment settings
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.*
+
+# Backend generated files and local-only settings
+backend/target/
+backend/src/main/resources/application-local.properties
+
+# Editor and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
