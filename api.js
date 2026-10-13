@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
 // Dynamic API URL for Vite
-const API_URL = (import.meta.env?.VITE_API_URL || 'http://localhost:8080').replace(/\/+$/, '');
+const API_URL = (import.meta.env?.VITE_API_URL || 'https://sports-court-availability-backend.onrender.com').replace(/\/+$/, '');
 
 function CourtComponent() {
   const [courts, setCourts] = useState([]);
