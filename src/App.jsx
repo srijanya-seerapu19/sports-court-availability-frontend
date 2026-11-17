@@ -9,6 +9,8 @@ const sports = [
   'Badminton',
   'Basketball',
   'Cricket',
+  'Football',
+  'Tennis',
   'Volleyball',
   'Table tennis',
   'Carrom',
@@ -71,6 +73,8 @@ function sportIcon(sport) {
     Badminton: '🏸',
     Basketball: '🏀',
     Cricket: '🏏',
+    Football: '⚽',
+    Tennis: '🎾',
     Volleyball: '🏐',
     'Table tennis': '🏓',
     Carrom: '◉',
@@ -474,7 +478,7 @@ function App() {
                 <a href="#courts" className="hero-button">Find your court →</a>
               </div>
               <div className="hero-ball" aria-hidden="true">🏸</div>
-              <span className="hero-tag">7 SPORTS · ONE UNIVERSITY</span>
+              <span className="hero-tag">9 SPORTS · ONE UNIVERSITY</span>
             </section>
           )}
 
@@ -483,7 +487,7 @@ function App() {
               <span>🏟</span>
               <small>TOTAL COURTS</small>
               <b>{String(courts.length).padStart(2, '0')}</b>
-              <p>Across 7 sports</p>
+              <p>Across 9 sports</p>
             </article>
             <article>
               <span>✓</span>
