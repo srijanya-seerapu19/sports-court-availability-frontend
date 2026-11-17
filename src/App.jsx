@@ -28,25 +28,43 @@ async function readResponse(response) {
   }
 }
 
+function parseTimestamp(timestamp) {
+  if (!timestamp) return 0
+  if (typeof timestamp === 'number') return timestamp
+  if (typeof timestamp === 'string') {
+    const trimmed = timestamp.trim()
+    const hasTimezone = /Z|[+-]\d{2}(:?\d{2})?$/.test(trimmed)
+    if (!hasTimezone) {
+      return new Date(trimmed + 'Z').getTime()
+    }
+    return new Date(trimmed).getTime()
+  }
+  return new Date(timestamp).getTime()
+}
+
 function mapBooking(booking) {
   if (!booking) return null
 
   return {
     ...booking,
-    started: new Date(booking.startTime).getTime(),
-    until: new Date(booking.endTime).getTime(),
+    started: parseTimestamp(booking.startTime),
+    until: parseTimestamp(booking.endTime),
   }
 }
 
 function formatClock(timestamp) {
-  return new Date(timestamp).toLocaleTimeString([], {
+  const ts = parseTimestamp(timestamp)
+  if (!ts) return '--:--'
+  return new Date(ts).toLocaleTimeString([], {
     hour: 'numeric',
     minute: '2-digit',
   })
 }
 
 function formatDateTime(timestamp) {
-  return new Date(timestamp).toLocaleString([], {
+  const ts = parseTimestamp(timestamp)
+  if (!ts) return '--'
+  return new Date(ts).toLocaleString([], {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
@@ -99,6 +117,9 @@ function App() {
   const [now, setNow] = useState(Date.now())
   const [toasts, setToasts] = useState([])
   const [confirmModal, setConfirmModal] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [onlyAvailable, setOnlyAvailable] = useState(false)
+  const [sportsPass, setSportsPass] = useState(null)
 
   function showToast(message, type = 'info', duration = 4000) {
     const id = Date.now() + Math.random()
@@ -198,7 +219,7 @@ function App() {
   const currentStudentBooking = myBookings.find(
     (booking) =>
       booking.status === 'ACTIVE' &&
-      new Date(booking.endTime).getTime() > now,
+      parseTimestamp(booking.endTime) > now,
   )
 
   const bookingCourt = currentStudentBooking
@@ -207,21 +228,30 @@ function App() {
       )
     : null
 
-  const myBooking =
-    currentStudentBooking && bookingCourt
-      ? {
-          ...bookingCourt,
-          booking: mapBooking(currentStudentBooking),
-        }
-      : null
+  const myBooking = currentStudentBooking
+    ? {
+        name: bookingCourt?.name || currentStudentBooking.courtName,
+        sport: bookingCourt?.sport || currentStudentBooking.sport,
+        place: bookingCourt?.place || 'Campus Sports Ground',
+        ...(bookingCourt || {}),
+        booking: mapBooking(currentStudentBooking),
+      }
+    : null
 
   const availableCount = courts.filter(
     (court) => court.active && court.available,
   ).length
 
-  const shownCourts = courts.filter(
-    (court) => filter === 'All sports' || court.sport === filter,
-  )
+  const shownCourts = courts.filter((court) => {
+    const matchesSport = filter === 'All sports' || court.sport === filter
+    const matchesSearch =
+      !searchQuery ||
+      court.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (court.place && court.place.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      court.sport.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesAvailability = !onlyAvailable || court.available
+    return matchesSport && matchesSearch && matchesAvailability
+  })
 
   async function login(event) {
     event.preventDefault()
@@ -357,7 +387,7 @@ function App() {
       await Promise.all([loadCourts(), loadMyBookings()])
 
       showToast(
-        `Booking confirmed! Code: ${data.bookingCode} (${formatClock(new Date(data.startTime).getTime())} - ${formatClock(new Date(data.endTime).getTime())})`,
+        `Booking confirmed! Code: ${data.bookingCode} (${formatClock(data.startTime)} - ${formatClock(data.endTime)})`,
         'success',
         6000,
       )
@@ -367,43 +397,44 @@ function App() {
     }
   }
 
-  function endSession() {
-    if (!myBooking) return
-
+  function promptCancelBooking(bookingId, courtName) {
     setConfirmModal({
-      title: 'End Session Early',
-      court: myBooking,
-      message: `Are you sure you want to end your session on ${myBooking.name} and release it for other players?`,
-      confirmText: 'End Session Now',
+      title: 'Cancel Reservation',
+      message: `Are you sure you want to cancel your reservation for ${courtName || 'this court'}? The court will immediately be made available for other students.`,
+      confirmText: 'Yes, Cancel Reservation',
       cancelText: 'Keep Playing',
       isDanger: true,
-      onConfirm: () => executeEndSession(),
+      onConfirm: () => executeCancelBooking(bookingId, courtName),
     })
   }
 
-  async function executeEndSession() {
+  async function executeCancelBooking(bookingId, courtName) {
     setConfirmModal(null)
-    if (!myBooking) return
 
     try {
-      const response = await fetch(
-        `${API}/bookings/${myBooking.booking.id}`,
-        {
-          method: 'DELETE',
-          credentials: 'include',
-        },
-      )
+      const response = await fetch(`${API}/bookings/${bookingId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
       const data = await readResponse(response)
 
       if (!response.ok) {
-        throw new Error(data?.message || 'Could not end the session.')
+        throw new Error(data?.message || 'Could not cancel the reservation.')
       }
 
       await Promise.all([loadCourts(), loadMyBookings()])
-      showToast('Your session has ended. Court is now free for others.', 'success')
+      showToast(
+        `Reservation for ${courtName || 'court'} cancelled and released successfully.`,
+        'success',
+      )
     } catch (error) {
-      showToast(error.message || 'Could not connect to the backend.', 'error', 5000)
+      showToast(error.message || 'Could not cancel the reservation.', 'error', 5000)
     }
+  }
+
+  function endSession() {
+    if (!myBooking?.booking?.id) return
+    promptCancelBooking(myBooking.booking.id, myBooking.name)
   }
 
   function openAuth(mode) {
@@ -509,26 +540,75 @@ function App() {
           {myBooking ? (
             <section className="session" id="session">
               <div className="session-copy">
-                <p className="kicker">YOUR SESSION IS LIVE</p>
-                <h2>{myBooking.sport} · {myBooking.name}</h2>
+                <div className="session-header-badge">
+                  <span className="live-dot">●</span>
+                  <p className="kicker" style={{ margin: 0 }}>YOUR SESSION IS LIVE</p>
+                </div>
+                <h2>{sportIcon(myBooking.sport)} {myBooking.sport} · {myBooking.name}</h2>
                 <p className="session-place">{myBooking.place}</p>
-                <p>Booking ID: {myBooking.booking.bookingCode}</p>
+                
+                <div className="session-tags">
+                  <span className="booking-code-tag">ID: {myBooking.booking.bookingCode}</span>
+                  <button
+                    type="button"
+                    className="pass-badge-btn"
+                    onClick={() => setSportsPass({
+                      ...myBooking,
+                      startTime: myBooking.booking.started,
+                      endTime: myBooking.booking.until,
+                      bookingCode: myBooking.booking.bookingCode,
+                      courtName: myBooking.name,
+                      durationMinutes: myBooking.booking.durationMinutes,
+                    })}
+                  >
+                    🎫 View Sports Pass
+                  </button>
+                </div>
+
                 <div className="session-times">
                   <span>
                     <small>STARTED</small>
-                    <b>{formatDateTime(myBooking.booking.started)}</b>
+                    <b>{formatClock(myBooking.booking.started)}</b>
                   </span>
                   <span>
                     <small>SCHEDULED END</small>
-                    <b>{formatDateTime(myBooking.booking.until)}</b>
+                    <b>{formatClock(myBooking.booking.until)}</b>
                   </span>
                 </div>
               </div>
-              <div className="countdown">
-                <small>TIME REMAINING</small>
-                <strong>{getRemaining(myBooking.booking.until, now)}</strong>
+
+              <div className="countdown-wrap">
+                <div className="countdown">
+                  <small>TIME REMAINING</small>
+                  <strong>{getRemaining(myBooking.booking.until, now)}</strong>
+                </div>
+                <div className="progress-track" title="Session progress">
+                  <div
+                    className="progress-fill"
+                    style={{
+                      width: `${Math.min(
+                        100,
+                        Math.max(
+                          0,
+                          Math.round(
+                            ((now - myBooking.booking.started) /
+                              Math.max(1, myBooking.booking.until - myBooking.booking.started)) *
+                              100,
+                          ),
+                        ),
+                      )}%`,
+                    }}
+                  />
+                </div>
               </div>
-              <button className="end-button" onClick={endSession}>End session</button>
+
+              <button
+                type="button"
+                className="end-button"
+                onClick={() => promptCancelBooking(myBooking.booking.id, myBooking.name)}
+              >
+                Cancel / Release Court
+              </button>
             </section>
           ) : (
             <section className="hero">
@@ -581,18 +661,51 @@ function App() {
             </div>
 
             <div className="booking-options">
-              <label htmlFor="booking-duration">Booking length</label>
-              <select
-                id="booking-duration"
-                value={durationMinutes}
-                onChange={(event) => setDurationMinutes(Number(event.target.value))}
-              >
-                <option value={15}>15 minutes</option>
-                <option value={30}>30 minutes</option>
-                <option value={45}>45 minutes</option>
-                <option value={60}>60 minutes</option>
-              </select>
-              <span>Maximum session: 1 hour</span>
+              <label htmlFor="booking-duration">Session length</label>
+              <div className="duration-pills">
+                {[15, 30, 45, 60].map((mins) => (
+                  <button
+                    key={mins}
+                    type="button"
+                    className={`duration-pill ${durationMinutes === mins ? 'selected' : ''}`}
+                    onClick={() => setDurationMinutes(mins)}
+                  >
+                    {mins} min
+                  </button>
+                ))}
+              </div>
+              <span>Max 1 hr per reservation</span>
+            </div>
+
+            <div className="search-filter-bar">
+              <div className="search-box">
+                <span className="search-icon">🔍</span>
+                <input
+                  type="text"
+                  placeholder="Search courts by name, sport, or ground..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="search-input"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    className="search-clear"
+                    onClick={() => setSearchQuery('')}
+                    aria-label="Clear search"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+              <label className="available-toggle">
+                <input
+                  type="checkbox"
+                  checked={onlyAvailable}
+                  onChange={(e) => setOnlyAvailable(e.target.checked)}
+                />
+                <span>Available courts only</span>
+              </label>
             </div>
 
             <div className="filters">
@@ -714,42 +827,85 @@ function App() {
               <p>You haven’t made any bookings yet.</p>
             ) : (
               <div className="court-grid">
-                {myBookings.map((booking, index) => (
-                  <article className={`court-card color-${index % 4}`} key={booking.id}>
-                    <div className="court-info">
-                      <div>
-                        <h3>{booking.courtName}</h3>
-                        <p>{booking.sport}</p>
-                      </div>
-                      <span
-                        className={`status ${
-                          booking.status === 'ACTIVE' ? 'busy' : 'available'
-                        }`}
-                      >
-                        {booking.status}
-                      </span>
-                    </div>
+                {myBookings.map((booking, index) => {
+                  const isBookingActive =
+                    booking.status === 'ACTIVE' &&
+                    parseTimestamp(booking.endTime) > now
 
-                    <div className="court-booking">
-                      <div>
-                        <small>BOOKING ID</small>
-                        <b>{booking.bookingCode}</b>
+                  return (
+                    <article
+                      className={`court-card color-${index % 4} ${
+                        isBookingActive ? 'active-booking-card' : ''
+                      }`}
+                      key={booking.id}
+                    >
+                      <div className="court-info">
+                        <div>
+                          <h3>{sportIcon(booking.sport)} {booking.courtName}</h3>
+                          <p>{booking.sport}</p>
+                        </div>
+                        <span
+                          className={`status ${
+                            isBookingActive
+                              ? 'busy live-pulse'
+                              : booking.status === 'CANCELLED'
+                                ? 'cancelled'
+                                : 'completed'
+                          }`}
+                        >
+                          {isBookingActive
+                            ? `● LIVE (${getRemaining(parseTimestamp(booking.endTime), now)})`
+                            : booking.status}
+                        </span>
                       </div>
-                      <div>
-                        <small>STARTED</small>
-                        <b>{formatDateTime(new Date(booking.startTime).getTime())}</b>
-                      </div>
-                      <div>
-                        <small>ENDS AT</small>
-                        <b>{formatDateTime(new Date(booking.endTime).getTime())}</b>
-                      </div>
-                    </div>
 
-                    <div className="court-bottom">
-                      <span>{booking.durationMinutes} minute session</span>
-                    </div>
-                  </article>
-                ))}
+                      <div className="court-booking">
+                        <div>
+                          <small>BOOKING ID</small>
+                          <b>{booking.bookingCode}</b>
+                        </div>
+                        <div>
+                          <small>STARTED</small>
+                          <b>{formatDateTime(booking.startTime)}</b>
+                        </div>
+                        <div>
+                          <small>ENDS AT</small>
+                          <b>{formatDateTime(booking.endTime)}</b>
+                        </div>
+                      </div>
+
+                      <div className="court-bottom">
+                        <span>{booking.durationMinutes} min session</span>
+                        <div className="history-actions">
+                          <button
+                            type="button"
+                            className="history-pass-btn"
+                            onClick={() =>
+                              setSportsPass({
+                                ...booking,
+                                name: booking.courtName,
+                                place: 'Campus Sports Complex',
+                              })
+                            }
+                          >
+                            🎫 Pass
+                          </button>
+                          {isBookingActive && (
+                            <button
+                              type="button"
+                              className="cancel-booking-btn"
+                              onClick={() =>
+                                promptCancelBooking(booking.id, booking.courtName)
+                              }
+                            >
+                              ✕ Cancel
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </article>
+                  )
+                })}
               </div>
             )}
           </section>
@@ -924,6 +1080,96 @@ function App() {
                 onClick={confirmModal.onConfirm}
               >
                 {confirmModal.confirmText || 'Confirm'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Digital Sports Pass Modal */}
+      {sportsPass && (
+        <div className="modal-backdrop" onClick={() => setSportsPass(null)}>
+          <div
+            className="modal-card sports-pass-modal"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="sports-pass-header">
+              <span className="sports-pass-badge">Official Campus Pass</span>
+              <h3>Anurag University Athletic Pass</h3>
+              <p>Department of Physical Education & Sports</p>
+            </div>
+
+            <div className="sports-pass-body">
+              <div className="sports-pass-row">
+                <div>
+                  <small>Student Player</small>
+                  <b>{student || sportsPass.studentEmail || 'Registered Student'}</b>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <small>Sport / Activity</small>
+                  <b>{sportIcon(sportsPass.sport)} {sportsPass.sport}</b>
+                </div>
+              </div>
+
+              <div className="sports-pass-row">
+                <div>
+                  <small>Reserved Court</small>
+                  <b>{sportsPass.name || sportsPass.courtName}</b>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <small>Campus Ground</small>
+                  <b>{sportsPass.place || 'Sports Complex'}</b>
+                </div>
+              </div>
+
+              <div className="sports-pass-row">
+                <div>
+                  <small>Session Starts</small>
+                  <b>{formatDateTime(sportsPass.startTime || sportsPass.booking?.started)}</b>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <small>Session Ends</small>
+                  <b>{formatDateTime(sportsPass.endTime || sportsPass.booking?.until)}</b>
+                </div>
+              </div>
+
+              <div className="barcode-box">
+                <div className="barcode-lines" aria-hidden="true">
+                  {[3, 1, 4, 2, 5, 2, 1, 4, 3, 2, 5, 1, 3, 2, 4, 1, 3, 5, 2, 4, 1, 3, 2, 4].map(
+                    (w, idx) => (
+                      <div
+                        key={idx}
+                        className="barcode-line"
+                        style={{ width: `${w}px` }}
+                      />
+                    ),
+                  )}
+                </div>
+                <span className="barcode-code">
+                  {sportsPass.bookingCode || sportsPass.booking?.bookingCode}
+                </span>
+                <p style={{ margin: '6px 0 0', fontSize: '11px', color: 'var(--muted)' }}>
+                  Show this pass at the court reception or gate check.
+                </p>
+              </div>
+            </div>
+
+            <div className="sports-pass-footer">
+              <button
+                type="button"
+                className="cancel-button"
+                onClick={() => setSportsPass(null)}
+              >
+                Close Pass
+              </button>
+              <button
+                type="button"
+                className="confirm-button"
+                onClick={() => window.print()}
+              >
+                🖨 Print / Save
               </button>
             </div>
           </div>

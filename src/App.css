@@ -1377,3 +1377,376 @@ a {
 .danger-button:hover {
   background: #a82e3a !important;
 }
+
+/* ========================================================
+   Active Session Countdown, Progress Bar & Actions
+   ======================================================== */
+.session-header-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.live-dot {
+  color: #16a34a;
+  font-size: 14px;
+  animation: pulseDot 1.5s infinite;
+}
+
+@keyframes pulseDot {
+  0% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(1.2); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.session-tags {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 16px;
+  flex-wrap: wrap;
+}
+
+.booking-code-tag {
+  display: inline-block;
+  background: #f0f4fa;
+  color: var(--navy);
+  font-family: monospace;
+  font-weight: 700;
+  font-size: 11.5px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid #dce4ef;
+}
+
+.pass-badge-btn {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.pass-badge-btn:hover {
+  background: #d1fae5;
+  border-color: #6ee7b7;
+}
+
+.countdown-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 160px;
+}
+
+.progress-track {
+  width: 100%;
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #0ea5e9);
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+/* ========================================================
+   Search & Filter Bar
+   ======================================================== */
+.search-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 16px 0;
+  flex-wrap: wrap;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  position: relative;
+  flex: 1;
+  min-width: 240px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.search-icon {
+  font-size: 14px;
+  color: var(--muted);
+  margin-right: 8px;
+}
+
+.search-input {
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+  width: 100%;
+  padding: 9px 0 !important;
+  font-size: 13px;
+  color: var(--navy);
+}
+
+.search-clear {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 4px;
+}
+.search-clear:hover {
+  color: var(--navy);
+}
+
+.available-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--navy);
+  cursor: pointer;
+  user-select: none;
+}
+
+.available-toggle input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--blue);
+}
+
+/* ========================================================
+   Quick Duration Selector Pills
+   ======================================================== */
+.duration-pills {
+  display: flex;
+  gap: 6px;
+}
+
+.duration-pill {
+  padding: 5px 12px;
+  border-radius: 8px;
+  border: 1px solid #dce4ef;
+  background: #f8fafc;
+  color: var(--navy);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.duration-pill:hover {
+  border-color: var(--blue);
+  background: #f0f6ff;
+}
+
+.duration-pill.selected {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: white;
+}
+
+/* ========================================================
+   Booking History Live Actions & Status Badges
+   ======================================================== */
+.active-booking-card {
+  border: 1.5px solid #93c5fd !important;
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.12) !important;
+}
+
+.status.live-pulse {
+  background: #ecfdf5 !important;
+  color: #047857 !important;
+  border: 1px solid #a7f3d0 !important;
+  animation: pulseDot 2s infinite;
+}
+
+.status.cancelled {
+  background: #fef2f2 !important;
+  color: #b91c1c !important;
+  border: 1px solid #fecaca !important;
+}
+
+.status.completed {
+  background: #f1f5f9 !important;
+  color: #64748b !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+.history-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.history-pass-btn {
+  background: #f8fafc;
+  border: 1px solid var(--line);
+  color: var(--navy);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 9px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.history-pass-btn:hover {
+  background: #edf2f7;
+}
+
+.cancel-booking-btn {
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  color: #be123c;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.cancel-booking-btn:hover {
+  background: #ffe4e6;
+  border-color: #fda4af;
+}
+
+/* ========================================================
+   Digital Sports Pass Modal
+   ======================================================== */
+.sports-pass-modal {
+  max-width: 440px !important;
+  padding: 0 !important;
+  overflow: hidden;
+  border-radius: 20px !important;
+}
+
+.sports-pass-header {
+  background: linear-gradient(135deg, #1e3a8a, #1d4ed8);
+  color: white;
+  padding: 24px;
+  position: relative;
+}
+
+.sports-pass-badge {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(8px);
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.sports-pass-header h3 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 800;
+}
+
+.sports-pass-header p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.sports-pass-body {
+  padding: 24px;
+  background: white;
+}
+
+.sports-pass-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed #e2e8f0;
+}
+
+.sports-pass-row:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.sports-pass-row small {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.sports-pass-row b {
+  display: block;
+  font-size: 13px;
+  color: var(--navy);
+  margin-top: 2px;
+}
+
+.barcode-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px;
+  text-align: center;
+  margin-top: 16px;
+}
+
+.barcode-lines {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  height: 42px;
+  margin-bottom: 6px;
+}
+
+.barcode-line {
+  height: 100%;
+  background: #1e293b;
+  border-radius: 1px;
+}
+
+.barcode-code {
+  font-family: monospace;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: var(--navy);
+}
+
+.sports-pass-footer {
+  padding: 16px 24px;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  gap: 10px;
+}
+
+.sports-pass-footer button {
+  flex: 1;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
