@@ -357,7 +357,7 @@ function App() {
         <a className="brand" href="#dashboard" aria-label="Courtside home">
           <img
             className="university-logo"
-            src="/anurag-university-logo.png"
+            src="./anurag-university-logo.png"
             alt="Anurag University logo"
           />
           <span className="brand-name">
@@ -715,7 +715,7 @@ function App() {
             </button>
             <img
               className="modal-university-logo"
-              src="/anurag-university-logo.png"
+              src="./anurag-university-logo.png"
               alt="Anurag University logo"
             />
             <p className="kicker">ANURAG UNIVERSITY STUDENT PORTAL</p>
