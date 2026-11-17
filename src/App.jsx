@@ -97,6 +97,20 @@ function App() {
   const [authError, setAuthError] = useState('')
   const [authBusy, setAuthBusy] = useState(false)
   const [now, setNow] = useState(Date.now())
+  const [toasts, setToasts] = useState([])
+  const [confirmModal, setConfirmModal] = useState(null)
+
+  function showToast(message, type = 'info', duration = 4000) {
+    const id = Date.now() + Math.random()
+    setToasts((prev) => [...prev, { id, message, type }])
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id))
+    }, duration)
+  }
+
+  function removeToast(id) {
+    setToasts((prev) => prev.filter((t) => t.id !== id))
+  }
 
   async function loadCourts() {
     try {
@@ -250,6 +264,12 @@ function App() {
       await loadMyBookings()
       setShowLogin(false)
       setAuthMode('login')
+      showToast(
+        authMode === 'register'
+          ? `Account created! Welcome, ${loginData.fullName}.`
+          : `Signed in as ${loginData.fullName}.`,
+        'success',
+      )
       event.currentTarget.reset()
     } catch (error) {
       setAuthError(error.message || 'Could not connect to the backend.')
@@ -267,31 +287,47 @@ function App() {
     } finally {
       setStudent('')
       setMyBookings([])
+      showToast('You have signed out.', 'info')
     }
   }
 
-  async function bookCourt(court) {
+  function bookCourt(court) {
     if (!student) {
       setAuthMode('login')
       setShowLogin(true)
+      showToast('Please sign in to reserve a court.', 'info')
       return
     }
 
     if (myBooking) {
-      window.alert('You already have an active booking. Finish that session first.')
+      showToast(
+        'You already have an active booking in progress. Please finish that session first.',
+        'error',
+        5000,
+      )
       return
     }
 
     if (!court.available) {
-      window.alert('This court is no longer available. The court list will refresh.')
-      await loadCourts()
+      showToast('This court is no longer available. Refreshing courts...', 'error')
+      loadCourts()
       return
     }
 
-    const confirmed = window.confirm(
-      `Book ${court.name} for ${durationMinutes} minutes?`,
-    )
-    if (!confirmed) return
+    setConfirmModal({
+      title: 'Confirm Court Booking',
+      court,
+      duration: durationMinutes,
+      message: `Reserve ${court.name} for ${durationMinutes} minutes under ${student}?`,
+      confirmText: 'Confirm Booking',
+      cancelText: 'Cancel',
+      isDanger: false,
+      onConfirm: () => executeBooking(court),
+    })
+  }
+
+  async function executeBooking(court) {
+    setConfirmModal(null)
 
     try {
       const response = await fetch(`${API}/bookings`, {
@@ -306,24 +342,48 @@ function App() {
       const data = await readResponse(response)
 
       if (!response.ok) {
-        throw new Error(data?.message || 'Could not create the booking.')
+        if (response.status === 409) {
+          throw new Error(
+            data?.message ||
+              'You already have an active booking in progress. Please finish that session first.',
+          )
+        } else if (response.status === 401) {
+          throw new Error('Your session has expired. Please sign in again.')
+        } else {
+          throw new Error(data?.message || 'Could not create the booking.')
+        }
       }
 
       await Promise.all([loadCourts(), loadMyBookings()])
 
-      window.alert(
-        `Booking confirmed: ${data.bookingCode}\nStarts: ${formatDateTime(new Date(data.startTime).getTime())}\nEnds: ${formatDateTime(new Date(data.endTime).getTime())}`,
+      showToast(
+        `Booking confirmed! Code: ${data.bookingCode} (${formatClock(new Date(data.startTime).getTime())} - ${formatClock(new Date(data.endTime).getTime())})`,
+        'success',
+        6000,
       )
     } catch (error) {
-      window.alert(error.message || 'Could not connect to the backend.')
+      showToast(error.message || 'Could not connect to the backend.', 'error', 5000)
       await loadCourts()
     }
   }
 
-  async function endSession() {
+  function endSession() {
     if (!myBooking) return
 
-    if (!window.confirm('End your session and release this court now?')) return
+    setConfirmModal({
+      title: 'End Session Early',
+      court: myBooking,
+      message: `Are you sure you want to end your session on ${myBooking.name} and release it for other players?`,
+      confirmText: 'End Session Now',
+      cancelText: 'Keep Playing',
+      isDanger: true,
+      onConfirm: () => executeEndSession(),
+    })
+  }
+
+  async function executeEndSession() {
+    setConfirmModal(null)
+    if (!myBooking) return
 
     try {
       const response = await fetch(
@@ -340,8 +400,9 @@ function App() {
       }
 
       await Promise.all([loadCourts(), loadMyBookings()])
+      showToast('Your session has ended. Court is now free for others.', 'success')
     } catch (error) {
-      window.alert(error.message || 'Could not connect to the backend.')
+      showToast(error.message || 'Could not connect to the backend.', 'error', 5000)
     }
   }
 
@@ -787,6 +848,85 @@ function App() {
               </button>
             </p>
           </form>
+        </div>
+      )}
+
+      {/* Toast Notifications */}
+      <div className="toast-container" aria-live="polite">
+        {toasts.map((toast) => (
+          <div key={toast.id} className={`toast toast-${toast.type}`}>
+            <span className="toast-icon">
+              {toast.type === 'success' ? '✓' : toast.type === 'error' ? '⚠️' : 'ℹ️'}
+            </span>
+            <span className="toast-message">{toast.message}</span>
+            <button
+              className="toast-close"
+              type="button"
+              onClick={() => removeToast(toast.id)}
+              aria-label="Close notification"
+            >
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* Confirmation Modal */}
+      {confirmModal && (
+        <div className="modal-backdrop" onClick={() => setConfirmModal(null)}>
+          <div
+            className="modal-card confirm-modal"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+          >
+            <button
+              className="modal-close"
+              type="button"
+              onClick={() => setConfirmModal(null)}
+              aria-label="Close modal"
+            >
+              ×
+            </button>
+
+            <span className="modal-tag">Confirmation</span>
+            <h3>{confirmModal.title}</h3>
+            <p className="modal-copy">{confirmModal.message}</p>
+
+            {confirmModal.court && (
+              <div className="confirm-court-badge">
+                <span className="confirm-court-icon">
+                  {sportIcon(confirmModal.court.sport)}
+                </span>
+                <div>
+                  <strong>{confirmModal.court.name}</strong>
+                  <small>{confirmModal.court.place || confirmModal.court.location || confirmModal.court.sport}</small>
+                </div>
+                {confirmModal.duration && (
+                  <span className="confirm-duration-tag">
+                    {confirmModal.duration} mins
+                  </span>
+                )}
+              </div>
+            )}
+
+            <div className="confirm-actions">
+              <button
+                type="button"
+                className="cancel-button"
+                onClick={() => setConfirmModal(null)}
+              >
+                {confirmModal.cancelText || 'Cancel'}
+              </button>
+              <button
+                type="button"
+                className={`confirm-button ${confirmModal.isDanger ? 'danger-button' : ''}`}
+                onClick={confirmModal.onConfirm}
+              >
+                {confirmModal.confirmText || 'Confirm'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
